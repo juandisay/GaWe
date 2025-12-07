@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { TimerUpdate } from '../types';
-import { Play, Pause, Square, ArrowLeft, Maximize, Minimize, Music, Volume2, Edit } from 'lucide-react';
+import { Play, Pause, Square, Maximize, Minimize, Music, Volume2, Edit } from 'lucide-react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { useSettingsStore } from '../stores/settingsStore';
 import { Button } from '../components/ui/Button';
@@ -46,24 +46,26 @@ export const Focus = () => {
     return () => {
       unlistenUpdate.then(f => f());
       unlistenFinish.then(f => f());
-      // Ensure music is stopped when leaving the focus page
-      invoke('pause_music').catch(console.error);
+      invoke('stop_music').catch(console.error);
     };
-  }, [navigate]);
 
-  // Auto-play music logic
+}, [navigate]);
+
+  // Auto-play music logic (start when session starts; stop when session stops)
   useEffect(() => {
     if (!settings.musicAutoPlay || !settings.musicFilePath) return;
 
-    if (timerState?.is_running && !isMusicPlaying && !hasAutoPlayed.current) {
-        invoke('play_music', { filePath: settings.musicFilePath })
-            .then(() => setIsMusicPlaying(true))
-            .catch(console.error);
-        hasAutoPlayed.current = true;
-    } else if (!timerState?.is_running && isMusicPlaying) {
-        invoke('pause_music');
-        setIsMusicPlaying(false);
-        hasAutoPlayed.current = false;
+    const shouldPlay = Boolean(timerState?.is_running);
+
+    if (shouldPlay && !isMusicPlaying) {
+      invoke('play_music', { filePath: settings.musicFilePath })
+        .then(() => setIsMusicPlaying(true))
+        .catch(console.error);
+      hasAutoPlayed.current = true;
+    } else if (isMusicPlaying && !shouldPlay) {
+      invoke('stop_music');
+      setIsMusicPlaying(false);
+      hasAutoPlayed.current = false;
     }
   }, [timerState?.is_running, settings.musicAutoPlay, settings.musicFilePath]);
 
@@ -142,11 +144,7 @@ export const Focus = () => {
         </div>
 
         {/* Header Controls */}
-        <div className="absolute top-0 left-0 w-full p-8 flex justify-between items-start z-10">
-            <Button variant="ghost" size="icon" onClick={() => navigate('/')} className="hover:bg-white/10 text-gray-400 hover:text-white">
-                <ArrowLeft size={24} />
-            </Button>
-
+        <div className="absolute top-0 left-0 w-full p-8 flex justify-end items-start z-10">
             <div className="flex gap-4">
                 <Button 
                     variant="ghost" 
@@ -229,7 +227,7 @@ export const Focus = () => {
                 
                 <div className="relative mb-20 group cursor-default">
                     {/* Timer Ring Effect */}
-                     <div className={`absolute -inset-8 rounded-full border border-dashed opacity-20 transition-all duration-1000 ${ringColor} ${timerState.is_running ? 'animate-[spin_60s_linear_infinite]' : ''}`} />
+                     <div className={`absolute -inset-8 rounded-full border border-dashed opacity-20 transition-all duration-1000 pointer-events-none ${ringColor} ${timerState.is_running ? 'animate-[spin_60s_linear_infinite]' : ''}`} />
                     
                     <div className="text-[10rem] md:text-[14rem] leading-none font-sans font-bold tracking-tighter tabular-nums select-none drop-shadow-2xl">
                         {formatTime(timerState.remaining_seconds)}
@@ -238,7 +236,7 @@ export const Focus = () => {
                 
                 <div className="flex gap-6 justify-center items-center">
                     <button 
-                        onClick={() => { invoke('pause_timer'); invoke('pause_music'); navigate('/'); }}
+                        onClick={() => { invoke('pause_timer'); invoke('stop_music'); navigate('/'); }}
                         className="group p-4 rounded-full hover:bg-white/10 transition-all duration-300 text-gray-400 hover:text-white cursor-pointer"
                         title="Stop Session"
                     >
