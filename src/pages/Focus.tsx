@@ -65,17 +65,23 @@ export const Focus = () => {
         .catch(console.error);
       hasAutoPlayed.current = true;
     } else if (isMusicPlaying && !shouldPlay) {
-      invoke('stop_music');
+      invoke('pause_music').catch(console.error);
       setIsMusicPlaying(false);
       hasAutoPlayed.current = false;
     }
   }, [timerState?.is_running, settings.musicAutoPlay, settings.musicFilePath]);
+
+  useEffect(() => {
+    invoke('set_volume', { volume: settings.musicVolume }).catch(console.error);
+  }, [settings.musicVolume]);
 
   const toggleTimer = async () => {
     if (!timerState) return;
 
     if (timerState.is_running) {
       await invoke('pause_timer');
+      await invoke('pause_music');
+      setIsMusicPlaying(false);
       // Optimistic update
       setTimerState(prev => prev ? { ...prev, is_running: false } : null);
     } else {
@@ -172,6 +178,7 @@ export const Focus = () => {
             size="icon"
             onClick={() => {
               invoke('pause_timer');
+              invoke('pause_music');
               navigate(`/config?id=${timerState?.session_id}`);
             }}
             className="hover:bg-white/10 text-gray-400 hover:text-white"
