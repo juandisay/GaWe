@@ -31,8 +31,8 @@ pub fn set_activity_monitoring(enabled: bool, threshold: u64, state: State<'_, A
 }
 
 #[tauri::command]
-pub fn play_music(file_path: String, state: State<'_, AudioManager>) -> Result<(), String> {
-    state.play(file_path)
+pub fn play_music(file_path: String, loop_enabled: bool, state: State<'_, AudioManager>) -> Result<(), String> {
+    state.play(file_path, loop_enabled)
 }
 
 #[tauri::command]

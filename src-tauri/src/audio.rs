@@ -6,7 +6,7 @@ use rodio::{Decoder, OutputStreamBuilder, Sink, Source};
 use rodio::source::SineWave;
 
 enum AudioCommand {
-    Play(String),
+    Play(String, bool),
     PlayBell,
     Pause,
     Stop,
@@ -31,7 +31,7 @@ impl AudioManager {
 
                 while let Ok(command) = rx.recv() {
                     match command {
-                        AudioCommand::Play(path) => {
+                        AudioCommand::Play(path, loop_enabled) => {
                             // Stop existing
                             if let Some(old_sink) = sink.take() {
                                 old_sink.stop();
@@ -43,7 +43,11 @@ impl AudioManager {
                                     // connect_new returns Sink directly, not Result
                                     let new_sink = Sink::connect_new(&stream.mixer());
                                     new_sink.set_volume(current_volume);
-                                    new_sink.append(source);
+                                    if loop_enabled {
+                                        new_sink.append(source.repeat_infinite());
+                                    } else {
+                                        new_sink.append(source);
+                                    }
                                     sink = Some(new_sink);
                                 }
                             }
@@ -140,8 +144,8 @@ impl AudioManager {
         }
     }
 
-    pub fn play(&self, path: String) -> Result<(), String> {
-        self.sender.lock().unwrap().send(AudioCommand::Play(path)).map_err(|e| e.to_string())
+    pub fn play(&self, path: String, loop_enabled: bool) -> Result<(), String> {
+        self.sender.lock().unwrap().send(AudioCommand::Play(path, loop_enabled)).map_err(|e| e.to_string())
     }
 
     pub fn play_bell(&self) {
